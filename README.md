@@ -1,211 +1,391 @@
-# WordPress 自動下書き保存システム
+# ChatGPT to WordPress - AI記事生成システム
 
-WordPressに高度な自動下書き保存機能を追加するシステムです。リアルタイムで記事の下書きを保存し、データの損失を防ぎます。
+カスタムGPTを活用してWordPressに自動的に下書きを保存するシステムです。複数のカスタムGPTから記事を生成し、WordPress REST APIを通じて自動保存します。
 
-## 主な機能
+## ✨ 主な機能
 
-### 🔄 自動保存機能
-- **30秒間隔での自動保存**（設定可能）
-- **入力停止時の即座保存**
-- **ページ離脱時の緊急保存**
-- **セッション管理による継続保存**
+### 🤖 カスタムGPT統合
+- **複数のカスタムGPT対応**（ブログ記事作成、ニュース記事作成など）
+- **柔軟なプロンプト設定**
+- **トークン数・Temperature調整可能**
+- **バッチ処理対応**
 
-### 💾 下書き管理
-- **独立したデータベーステーブル**での管理
-- **セッションIDによる識別**
-- **ユーザーIDとの関連付け**
-- **自動クリーンアップ機能**（7日間）
+### 📝 自動WordPress保存
+- **REST API経由での自動保存**
+- **下書き・非公開・公開状態選択**
+- **カテゴリ・タグ自動設定**
+- **AIメタデータ付与**
 
-### 🎨 ユーザーインターフェース
-- **モダンなエディターUI**
-- **リアルタイム保存状況表示**
-- **タイピングインジケーター**
-- **ワンクリック復元機能**
+### 🎨 直感的なUI
+- **モダンなWebインターフェース**
+- **リアルタイム進捗表示**
+- **結果プレビュー**
+- **エラーハンドリング**
 
-## システム構成
+## 📋 システム要件
+
+- **PHP 7.4以上**
+- **cURL拡張**
+- **JSON拡張**
+- **Webサーバー（Apache/Nginx）**
+- **WordPress 5.0以上（REST API有効）**
+- **OpenAI API アカウント**
+
+## 🚀 インストール手順
+
+### 1. ファイルのダウンロード
+
+```bash
+git clone https://github.com/ken376857/wordpress.git
+cd wordpress
+```
+
+### 2. 設定ファイルの準備
+
+```bash
+cp .env.example .env
+```
+
+`.env`ファイルを編集して必要な設定を入力：
+
+```env
+OPENAI_API_KEY=sk-your-openai-api-key
+WP_BASE_URL=https://yourwordpress.com
+WP_USERNAME=your_username
+WP_PASSWORD=your_application_password
+```
+
+### 3. WordPress設定
+
+#### アプリケーションパスワードの作成
+1. WordPress管理画面 → ユーザー → プロフィール
+2. 「アプリケーションパスワード」セクション
+3. 新しいパスワードを生成
+4. 生成されたパスワードを`.env`に設定
+
+#### REST API の有効化確認
+```
+https://yourwordpress.com/wp-json/wp/v2/posts
+```
+上記URLにアクセスして投稿一覧が表示されることを確認。
+
+### 4. セットアップの実行
+
+ブラウザで`setup.php`にアクセスしてシステムチェック：
+
+```
+http://yourserver.com/setup.php
+```
+
+### 5. システム開始
+
+```
+http://yourserver.com/index.html
+```
+
+## 🛠 設定オプション
+
+### config.php設定
+
+```php
+return [
+    'openai' => [
+        'api_key' => getenv('OPENAI_API_KEY'),
+        'model' => 'gpt-4',
+        'max_tokens' => 2000,
+        'temperature' => 0.7
+    ],
+    'wordpress' => [
+        'base_url' => getenv('WP_BASE_URL'),
+        'username' => getenv('WP_USERNAME'),
+        'password' => getenv('WP_PASSWORD')
+    ],
+    'custom_gpts' => [
+        'gpt1' => [
+            'name' => 'ブログ記事作成GPT',
+            'system_prompt' => 'SEOを意識した魅力的なブログ記事を作成してください。',
+            'enabled' => true
+        ]
+    ]
+];
+```
+
+### カスタムGPTの追加
+
+新しいカスタムGPTを追加するには：
+
+```php
+'gpt3' => [
+    'name' => '技術記事作成GPT',
+    'description' => '技術的な内容を分かりやすく解説',
+    'system_prompt' => '技術的な内容を初心者にも分かりやすく解説してください。',
+    'enabled' => true
+]
+```
+
+## 📊 API エンドポイント
+
+### 記事生成
+```
+POST /api.php
+Content-Type: application/json
+
+{
+  "action": "generate_content",
+  "gpt_type": "gpt1",
+  "prompt": "AIについてのブログ記事を作成",
+  "category": 2,
+  "tags": "AI,技術,ブログ",
+  "max_tokens": 2000,
+  "temperature": 0.7,
+  "post_status": "draft"
+}
+```
+
+### 接続テスト
+```
+GET /api.php?action=test_connection
+```
+
+### 下書き一覧取得
+```
+GET /api.php?action=get_drafts&limit=10&offset=0
+```
+
+### バッチ生成
+```
+POST /api.php
+Content-Type: application/json
+
+{
+  "action": "batch_generate",
+  "prompts": ["記事1のプロンプト", "記事2のプロンプト"],
+  "gpt_types": ["gpt1", "gpt2"]
+}
+```
+
+## 📁 ファイル構成
 
 ```
 wordpress/
-├── auto-save.js              # フロントエンド自動保存スクリプト
-├── auto-save-handler.php     # バックエンド処理（単体版）
-├── wp-auto-save-plugin.php   # WordPress プラグイン版
-├── wp-editor.html            # スタンドアロンエディター
-└── README.md                 # このファイル
+├── index.html              # メインUI
+├── api.php                 # REST APIエンドポイント
+├── config.php              # 設定ファイル
+├── setup.php               # セットアップツール
+├── .env.example            # 環境変数テンプレート
+├── OpenAIClient.php        # OpenAI API クライアント
+├── WordPressClient.php     # WordPress API クライアント
+├── Logger.php              # ログ機能
+└── README.md               # このファイル
 ```
 
-## インストール方法
+## 🔧 使用方法
 
-### プラグインとして使用する場合
+### 基本的な使用手順
 
-1. **ファイルのアップロード**
-   ```bash
-   # WordPressのプラグインディレクトリにファイルをコピー
-   cp wp-auto-save-plugin.php /path/to/wordpress/wp-content/plugins/
-   cp auto-save.js /path/to/wordpress/wp-content/plugins/
-   ```
+1. **GPTの選択**
+   - ブログ記事作成GPTまたはニュース記事作成GPTを選択
 
-2. **プラグインの有効化**
-   - WordPress管理画面の「プラグイン」メニューから有効化
-   - データベーステーブルが自動作成されます
+2. **プロンプトの入力**
+   - 生成したい記事の内容を詳細に記述
+   - プロンプト例を参考に具体的に記載
 
 3. **設定の調整**
-   - 「設定」→「投稿設定」から自動保存間隔を調整可能
+   - カテゴリ、タグ、投稿ステータスを設定
+   - 必要に応じてトークン数やTemperatureを調整
 
-### スタンドアロンとして使用する場合
+4. **記事生成・保存**
+   - 「記事を生成してWordPressに保存」ボタンをクリック
+   - 進捗をリアルタイムで確認
 
-1. **ファイルの配置**
-   ```bash
-   # Webサーバーのドキュメントルートに配置
-   cp *.js *.php *.html /path/to/webserver/document-root/
-   ```
+5. **結果の確認**
+   - 生成された記事のプレビューを確認
+   - WordPress管理画面で編集や公開
 
-2. **エディターへのアクセス**
-   ```
-   http://your-domain.com/wp-editor.html
-   ```
+### 高度な使用方法
 
-## 技術仕様
-
-### データベーステーブル
-
-```sql
-CREATE TABLE wp_auto_save_drafts (
-    id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
-    session_id varchar(255) NOT NULL,
-    user_id bigint(20) unsigned DEFAULT 0,
-    post_id bigint(20) unsigned DEFAULT 0,
-    title text,
-    content longtext,
-    post_type varchar(20) DEFAULT 'post',
-    created_at datetime DEFAULT CURRENT_TIMESTAMP,
-    updated_at datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    PRIMARY KEY (id),
-    KEY session_id (session_id),
-    KEY user_id (user_id),
-    KEY updated_at (updated_at)
-);
-```
-
-### APIエンドポイント
-
-#### 下書き保存
-```
-POST /wp-admin/admin-ajax.php
-action: auto_save_draft
-nonce: [セキュリティトークン]
-post_id: [投稿ID]
-title: [タイトル]
-content: [本文]
-```
-
-#### 下書き取得
-```
-POST /wp-admin/admin-ajax.php
-action: get_draft_content
-nonce: [セキュリティトークン]
-session_id: [セッションID]
-post_id: [投稿ID]
-```
-
-## 設定オプション
-
-### WordPress設定
-
-- **auto_save_interval**: 自動保存間隔（秒）
-  - デフォルト: 30秒
-  - 範囲: 5-300秒
-
-### JavaScript設定
+#### バッチ処理
+複数の記事を一度に生成：
 
 ```javascript
-new AutoSave({
-    endpoint: '/wp-admin/admin-ajax.php',  // 保存エンドポイント
-    nonce: 'security-token',               // セキュリティトークン
-    postId: 123,                          // 投稿ID
-    interval: 30000,                      // 保存間隔（ミリ秒）
-    action: 'auto_save_draft'             // アクション名
-});
+fetch('api.php', {
+  method: 'POST',
+  headers: {'Content-Type': 'application/json'},
+  body: JSON.stringify({
+    action: 'batch_generate',
+    prompts: [
+      'AIトレンド2024について',
+      'リモートワークのコツ',
+      '健康的な食生活ガイド'
+    ],
+    gpt_types: ['gpt1', 'gpt1', 'gpt2']
+  })
+})
 ```
 
-## セキュリティ機能
+#### カスタマイズ
+独自のカスタムGPTを追加してより特化した記事生成が可能。
 
-- **WordPress nonce認証**
-- **入力値のサニタイゼーション**
-- **SQLインジェクション対策**
-- **セッション管理**
-- **権限チェック**
-
-## パフォーマンス最適化
-
-- **タイピング中の保存停止**
-- **変更検知による無駄な通信削減**
-- **自動クリーンアップによるデータベース最適化**
-- **インデックス最適化**
-
-## 使用方法
-
-### 基本的な使用
-
-1. **エディターページを開く**
-2. **タイトルと本文を入力**
-3. **自動的に30秒ごとに保存される**
-4. **入力停止時にも即座に保存**
-
-### 下書きの復元
-
-1. **「下書きを復元」ボタンをクリック**
-2. **保存された下書きが自動的に読み込まれる**
-3. **確認ダイアログで復元を選択**
-
-### 手動保存
-
-- **「手動保存」ボタン**でいつでも保存可能
-- **Ctrl+S**でも保存可能（ブラウザ設定による）
-
-## トラブルシューティング
+## 🔍 トラブルシューティング
 
 ### よくある問題
 
-1. **自動保存が動作しない**
-   - JavaScriptエラーの確認
-   - ネットワーク接続の確認
-   - nonce認証の確認
+#### 1. CORS エラー
+```
+Access to fetch at 'api.php' from origin 'null' has been blocked
+```
+**解決方法**: ローカルWebサーバーを使用
+```bash
+php -S localhost:8000
+```
 
-2. **下書きが復元されない**
-   - セッションIDの確認
-   - データベーステーブルの存在確認
-   - ブラウザのLocalStorageの確認
+#### 2. OpenAI API エラー
+```
+OpenAI API error: Incorrect API key provided
+```
+**解決方法**: 
+- API keyが正しく設定されているか確認
+- OpenAIアカウントの残高を確認
 
-3. **パフォーマンスの問題**
-   - 自動保存間隔の調整
-   - データベースのインデックス確認
-   - 古い下書きの削除
+#### 3. WordPress接続エラー
+```
+WordPress API error: Invalid username or password
+```
+**解決方法**:
+- アプリケーションパスワードを再生成
+- WordPress URL が正しいか確認
+- REST API が有効か確認
+
+#### 4. 権限エラー
+```
+Permission denied
+```
+**解決方法**:
+```bash
+chmod 755 /path/to/wordpress/
+chmod 666 /path/to/wordpress/*.php
+```
 
 ### デバッグ方法
 
-```javascript
-// ブラウザコンソールでの確認
-console.log(window.wpAutoSaveInstance);
-console.log(localStorage.getItem('wp_draft_title'));
-```
-
+#### ログの確認
 ```php
-// PHPでのデバッグ
-error_log('Auto save debug: ' . print_r($_POST, true));
+// Logger を使用
+$logger = new Logger('debug');
+$logger->info('Debug message', ['data' => $someData]);
+
+// ログファイルの場所
+/tmp/chatgpt-wordpress-logs/app-YYYY-MM-DD.log
 ```
 
-## ライセンス
+#### API レスポンスの確認
+```bash
+curl -X POST http://localhost:8000/api.php \
+  -H "Content-Type: application/json" \
+  -d '{"action":"test_connection"}'
+```
 
-GPL v2 or later
+## 🔒 セキュリティ
 
-## 作成者
+### 推奨設定
 
-Ken Tanabe
+1. **API キーの保護**
+   - `.env`ファイルをWebルートから除外
+   - 環境変数での管理を推奨
 
-## 更新履歴
+2. **アクセス制限**
+   - 特定IPからのアクセスのみ許可
+   - Basic認証の設定
 
-- **v1.0.0** (2024-06-25): 初回リリース
-  - 基本的な自動保存機能
-  - WordPress プラグイン対応
-  - スタンドアロンエディター
-  - セキュリティ機能実装
+3. **レート制限**
+   - API呼び出し回数の制限
+   - 不正利用の防止
+
+### .htaccess 設定例
+
+```apache
+# .env ファイルへのアクセス拒否
+<Files ".env">
+    Order allow,deny
+    Deny from all
+</Files>
+
+# ログファイルへのアクセス拒否
+<Files "*.log">
+    Order allow,deny
+    Deny from all
+</Files>
+```
+
+## 🧪 テスト
+
+### システムテスト
+```bash
+# セットアップの実行
+php setup.php
+
+# API テスト
+curl -X GET "http://localhost:8000/api.php?action=test_connection"
+```
+
+### 単体テスト
+```php
+// OpenAI クライアントテスト
+$openai = new OpenAIClient($config);
+$result = $openai->generateContent('テストプロンプト', 'gpt1');
+
+// WordPress クライアントテスト  
+$wordpress = new WordPressClient($config);
+$wordpress->testConnection();
+```
+
+## 📈 パフォーマンス最適化
+
+### 推奨設定
+
+1. **キャッシュの活用**
+   - 生成結果の一時キャッシュ
+   - API レスポンスのキャッシュ
+
+2. **バッチ処理の最適化**
+   - 適切な遅延設定
+   - 並列処理の制限
+
+3. **リソース管理**
+   - メモリ使用量の監視
+   - タイムアウト設定の調整
+
+## 🤝 コントリビューション
+
+プルリクエストやイシューの報告を歓迎します。
+
+1. フォークしてください
+2. フィーチャーブランチを作成 (`git checkout -b feature/AmazingFeature`)
+3. コミット (`git commit -m 'Add some AmazingFeature'`)
+4. プッシュ (`git push origin feature/AmazingFeature`)
+5. プルリクエストを開いてください
+
+## 📄 ライセンス
+
+MIT License
+
+## 👨‍💻 作成者
+
+**Ken Tanabe**
+- GitHub: [@ken376857](https://github.com/ken376857)
+
+## 🔄 更新履歴
+
+### v1.0.0 (2024-06-25)
+- 初回リリース
+- 基本的なChatGPT → WordPress統合機能
+- 2つのカスタムGPT対応
+- バッチ処理機能
+- セットアップツール
+
+### 今後の予定
+- [ ] より多くのカスタムGPT対応
+- [ ] 画像生成機能
+- [ ] スケジュール投稿
+- [ ] WordPress プラグイン版
+- [ ] 多言語対応
